@@ -12,75 +12,79 @@ HTML_FORM = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>PDF to Excel Converter</title>
-    <style>
-        body {
-            background: #f0f4f8;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 450px;
-            background: white;
-            margin: 80px auto;
-            padding: 30px 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-        h2 {
-            margin-top: 0;
-            color: #2c3e50;
-            text-align: center;
-        }
-        input[type="file"] {
-            width: 100%;
-            padding: 12px;
-            margin: 18px 0;
-            border: 2px dashed #ccc;
-            border-radius: 8px;
-            background-color: #f9f9f9;
-            cursor: pointer;
-            transition: border-color 0.3s;
-        }
-        input[type="file"]:hover {
-            border-color: #3498db;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #3498db;
-            color: white;
-            font-size: 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        .footer {
-            margin-top: 20px;
-            text-align: center;
-            font-size: 13px;
-            color: #777;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>PDF to Excel Converter</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: url('https://images.unsplash.com/photo-1531746790731-6c087fecd65a?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      width: 100%;
+      max-width: 450px;
+      text-align: center;
+    }
+    h2 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 14px;
+      margin: 20px 0;
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      background-color: #f8f8f8;
+      cursor: pointer;
+    }
+    input[type="file"]:hover {
+      border-color: #3498db;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background-color: #3498db;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #555;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>📄 PDF to Excel Converter</h2>
-        <form method="POST" action="/convert" enctype="multipart/form-data">
-            <input type="file" name="pdf_file" accept=".pdf" required>
-            <button type="submit">Convert and Download</button>
-        </form>
-        <div class="footer">Built with ❤️ for your bank statements</div>
-    </div>
+  <div class="container">
+    <h2>📄 PDF to Excel Converter</h2>
+    <form method="POST" action="/convert" enctype="multipart/form-data">
+      <input type="file" name="pdf_file" accept=".pdf" required>
+      <button type="submit">Convert & Download</button>
+    </form>
+    <div class="footer">Built with ❤️ for your bank statements</div>
+  </div>
 </body>
 </html>
 '''
+
 
 
 @app.route("/")
@@ -122,8 +126,9 @@ def convert_pdf_to_excel():
 
             amounts = []
             while i < len(lines) and len(amounts) < 2:
-                if amount_pattern.match(lines[i].strip()):
-                    amounts.append(lines[i].strip())
+                amt_line = lines[i].strip()
+                if amount_pattern.match(amt_line):
+                    amounts.append(amt_line)
                 i += 1
 
             deposit, withdrawal, balance = "", "", ""
@@ -153,7 +158,7 @@ def convert_pdf_to_excel():
         else:
             i += 1
 
-    # Write to Excel using openpyxl
+    # Create Excel
     output = BytesIO()
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -171,10 +176,13 @@ def convert_pdf_to_excel():
             tx["balance"]
         ])
 
-    for col in ws.columns:
-        max_len = max(len(str(cell.value)) if cell.value else 0 for cell in col)
-        col_letter = get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max_len + 4
+    # Auto-adjust column width
+    for col_idx, col_cells in enumerate(ws.columns, start=1):
+        max_length = 0
+        for cell in col_cells:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[get_column_letter(col_idx)].width = max_length + 4
 
     for row in ws.iter_rows():
         for cell in row:
@@ -191,4 +199,4 @@ def convert_pdf_to_excel():
     )
 
 if __name__ == "__main__":
-    app.run(debug=True, port=10000)
+    app.run(debug=True, host="0.0.0.0", port=10000)
