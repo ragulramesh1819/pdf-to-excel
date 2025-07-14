@@ -2,13 +2,13 @@ from flask import Flask, request, send_file, render_template_string
 import fitz  # PyMuPDF
 import json
 import re
-import os
-import xlsxwriter
+import openpyxl
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
 from io import BytesIO
 
 app = Flask(__name__)
 
-# HTML form to upload PDF
 HTML_FORM = '''
 <!DOCTYPE html>
 <html>
@@ -16,7 +16,7 @@ HTML_FORM = '''
     <title>PDF to Excel Converter</title>
 </head>
 <body>
-    <h2>Upload PDF Statement</h2>
+    <h2>Upload Your Bank PDF Statement</h2>
     <form method="POST" action="/convert" enctype="multipart/form-data">
         <input type="file" name="pdf_file" accept=".pdf" required><br><br>
         <button type="submit">Convert and Download Excel</button>
@@ -86,36 +86,51 @@ def convert_pdf_to_excel():
                 prev_balance = float(balance.replace(",", ""))
 
             transactions.append({
-                "Date": date,
-                "Particulars": " ".join(particulars),
-                "Deposit": deposit,
-                "Withdrawal": withdrawal,
-                "Balance": balance
+                "date": date,
+                "particulars": " ".join(particulars),
+                "deposit": deposit,
+                "withdrawal": withdrawal,
+                "balance": balance
             })
         else:
             i += 1
 
-    # Create Excel in memory
+    # Write to Excel using openpyxl
     output = BytesIO()
-    workbook = xlsxwriter.Workbook(output)
-    worksheet = workbook.add_worksheet("Statement")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Bank Transactions"
 
     headers = ["Date", "Particulars", "Deposit", "Withdrawal", "Balance"]
-    for col, head in enumerate(headers):
-        worksheet.write(0, col, head)
+    ws.append(headers)
 
-    for row, txn in enumerate(transactions, start=1):
-        worksheet.write(row, 0, txn["Date"])
-        worksheet.write(row, 1, txn["Particulars"])
-        worksheet.write(row, 2, txn["Deposit"])
-        worksheet.write(row, 3, txn["Withdrawal"])
-        worksheet.write(row, 4, txn["Balance"])
+    for tx in transactions:
+        ws.append([
+            tx["date"],
+            tx["particulars"],
+            tx["deposit"],
+            tx["withdrawal"],
+            tx["balance"]
+        ])
 
-    workbook.close()
+    for col in ws.columns:
+        max_len = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max_len + 4
+
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+
+    wb.save(output)
     output.seek(0)
 
-   
-    return send_file(output, as_attachment=True, download_name="converted_statement.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="converted_statement.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=10000)
+    app.run(debug=True, port=10000)
