@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bank PDF to Excel</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      padding-top: 100px;
+      background: #f4f6f8;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      display: inline-block;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    input[type="file"] {
+      margin: 20px 0;
+    }
+    .error {
+      color: red;
+      margin-top: 20px;
+    }
+    .success {
+      color: green;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Convert Bank Statement PDF to Excel</h1>
+  <div class="container">
+    <input type="file" id="pdfFile" accept=".pdf" />
+    <br />
+    <button onclick="convert()">Convert</button>
+    <p id="message"></p>
+  </div>
+
+  <script>
+    async function convert() {
+      const file = document.getElementById("pdfFile").files[0];
+      if (!file) {
+        document.getElementById("message").innerText = "Please select a PDF file.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const response = await fetch("https://your-backend-url.com/convert", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error("Conversion failed.");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "converted.xlsx";
+        a.click();
+        document.getElementById("message").innerText = "✅ Download started!";
+      } catch (error) {
+        document.getElementById("message").innerText = "❌ Failed to fetch";
+      }
+    }
+  </script>
+</body>
+</html>
