@@ -8,22 +8,80 @@ from openpyxl.styles import Alignment
 from io import BytesIO
 
 app = Flask(__name__)
-
 HTML_FORM = '''
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>PDF to Excel Converter</title>
+    <style>
+        body {
+            background: #f0f4f8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 450px;
+            background: white;
+            margin: 80px auto;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            text-align: center;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            margin: 18px 0;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        input[type="file"]:hover {
+            border-color: #3498db;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #777;
+        }
+    </style>
 </head>
 <body>
-    <h2>Upload Your Bank PDF Statement</h2>
-    <form method="POST" action="/convert" enctype="multipart/form-data">
-        <input type="file" name="pdf_file" accept=".pdf" required><br><br>
-        <button type="submit">Convert and Download Excel</button>
-    </form>
+    <div class="container">
+        <h2>📄 PDF to Excel Converter</h2>
+        <form method="POST" action="/convert" enctype="multipart/form-data">
+            <input type="file" name="pdf_file" accept=".pdf" required>
+            <button type="submit">Convert and Download</button>
+        </form>
+        <div class="footer">Built with ❤️ for your bank statements</div>
+    </div>
 </body>
 </html>
 '''
+
 
 @app.route("/")
 def index():
