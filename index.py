@@ -362,7 +362,7 @@ HTML_FORM = '''
         </div>
       </div>
       
-      <div class="footer">Made by Ragul 📉 </div>
+      <div class="footer">MADE FOR ARUNKUMAR 📉</div>
     </div>
 
     <div class="support-text">
@@ -397,7 +397,9 @@ HTML_FORM = '''
         document.body.appendChild(particle);
         
         setTimeout(() => {
-          document.body.removeChild(particle);
+          if (document.body.contains(particle)) {
+            document.body.removeChild(particle);
+          }
         }, 6000);
       }, 500);
     }
@@ -415,8 +417,6 @@ HTML_FORM = '''
 
     // Form submission handler
     document.getElementById('convertForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      
       const btn = document.getElementById('convertBtn');
       const btnText = btn.querySelector('.btn-text');
       const loading = btn.querySelector('.loading');
@@ -426,15 +426,8 @@ HTML_FORM = '''
       btnText.style.display = 'none';
       loading.style.display = 'flex';
       
-      // Simulate conversion process
-      setTimeout(() => {
-        btn.disabled = false;
-        btnText.style.display = 'block';
-        loading.style.display = 'none';
-        
-        // Here you would typically handle the actual file conversion
-        alert('Conversion completed! Download would start here.');
-      }, 3000);
+      // The form will submit to your Flask backend
+      // The loading state will be reset when the page reloads or the download starts
     });
 
     // Initialize animations
