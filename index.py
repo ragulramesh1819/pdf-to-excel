@@ -18,7 +18,7 @@ HTML_FORM = '''
     body {
       margin: 0;
       padding: 0;
-      background: url('https://images.unsplash.com/photo-1531746790731-6c087fecd65a?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
+      background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
       background-size: cover;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
@@ -79,13 +79,11 @@ HTML_FORM = '''
       <input type="file" name="pdf_file" accept=".pdf" required>
       <button type="submit">Convert & Download</button>
     </form>
-    <div class="footer">Built with ❤️ for your bank statements</div>
+    <div class="footer"> MADE FOR ARUNKUMAR 📉</div>
   </div>
 </body>
 </html>
 '''
-
-
 
 @app.route("/")
 def index():
@@ -104,11 +102,24 @@ def convert_pdf_to_excel():
     for page in doc:
         lines.extend(page.get_text().split("\n"))
 
+    # Detect opening balance
+    opening_balance = None
+    amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
+    for i in range(len(lines)):
+        if "Opening Balance" in lines[i]:
+            for j in range(i+1, i+4):
+                if amount_pattern.match(lines[j].strip()):
+                    opening_balance = float(lines[j].replace(",", ""))
+                    break
+            break
+
+    if opening_balance is None:
+        return "Opening Balance not found."
+
     transactions = []
     i = 0
     date_pattern = re.compile(r"\d{2}-\d{2}-\d{4}")
-    amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
-    prev_balance = None
+    previous_balance = opening_balance
 
     while i < len(lines):
         line = lines[i].strip()
@@ -122,6 +133,7 @@ def convert_pdf_to_excel():
                 i += 1
 
             if i < len(lines) and lines[i].startswith("Chq:"):
+                particulars.append(lines[i].strip())
                 i += 1
 
             amounts = []
@@ -133,20 +145,20 @@ def convert_pdf_to_excel():
 
             deposit, withdrawal, balance = "", "", ""
             if len(amounts) == 2:
+                amount_val = float(amounts[0].replace(",", ""))
+                balance_val = float(amounts[1].replace(",", ""))
                 balance = amounts[1]
-                b = float(balance.replace(",", ""))
-                a = float(amounts[0].replace(",", ""))
-                if prev_balance is not None:
-                    if b > prev_balance:
-                        deposit = amounts[0]
-                    else:
-                        withdrawal = amounts[0]
-                else:
+
+                if balance_val > previous_balance:
                     deposit = amounts[0]
-                prev_balance = b
+                elif balance_val < previous_balance:
+                    withdrawal = amounts[0]
+
+                previous_balance = balance_val
+
             elif len(amounts) == 1:
                 balance = amounts[0]
-                prev_balance = float(balance.replace(",", ""))
+                previous_balance = float(balance.replace(",", ""))
 
             transactions.append({
                 "date": date,
@@ -168,15 +180,8 @@ def convert_pdf_to_excel():
     ws.append(headers)
 
     for tx in transactions:
-        ws.append([
-            tx["date"],
-            tx["particulars"],
-            tx["deposit"],
-            tx["withdrawal"],
-            tx["balance"]
-        ])
+        ws.append([tx["date"], tx["particulars"], tx["deposit"], tx["withdrawal"], tx["balance"]])
 
-    # Auto-adjust column width
     for col_idx, col_cells in enumerate(ws.columns, start=1):
         max_length = 0
         for cell in col_cells:
