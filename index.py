@@ -426,8 +426,22 @@ HTML_FORM = '''
       btnText.style.display = 'none';
       loading.style.display = 'flex';
       
-      // The form will submit to your Flask backend
-      // The loading state will be reset when the page reloads or the download starts
+      // Reset loading state after download completes
+      setTimeout(() => {
+        btn.disabled = false;
+        btnText.style.display = 'inline';
+        loading.style.display = 'none';
+      }, 3000); // Reset after 3 seconds
+      
+      // Also reset if user clicks anywhere (indicating download completed)
+      document.addEventListener('click', function resetOnClick() {
+        setTimeout(() => {
+          btn.disabled = false;
+          btnText.style.display = 'inline';
+          loading.style.display = 'none';
+          document.removeEventListener('click', resetOnClick);
+        }, 1000);
+      }, { once: true });
     });
 
     // Initialize animations
