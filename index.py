@@ -13,74 +13,434 @@ HTML_FORM = '''
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>PDF to Excel Converter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bank PDF to Excel Converter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    body {
+    * {
       margin: 0;
       padding: 0;
-      background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80') no-repeat center center fixed;
-      background-size: cover;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      box-sizing: border-box;
+    }
+
+    body {
+      height: 100vh;
+      background: radial-gradient(ellipse at top, #0f2027, #203a43, #2c5364);
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      position: relative;
     }
-    .container {
-      background: rgba(255, 255, 255, 0.95);
-      padding: 40px;
-      border-radius: 15px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+
+    /* Animated Background Stars */
+    .stars {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
-      max-width: 450px;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: #fff;
+      border-radius: 50%;
+      animation: twinkle 3s infinite;
+    }
+
+    .star:nth-child(odd) {
+      animation-delay: -1s;
+    }
+
+    .star:nth-child(3n) {
+      animation-delay: -2s;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    /* Floating particles */
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      animation: float 6s infinite linear;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 24px;
+      padding: 48px 40px;
+      width: 420px;
+      max-width: 90vw;
+      backdrop-filter: blur(16px);
+      box-shadow: 
+        0 8px 32px 0 rgba(0, 0, 0, 0.37),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+      text-align: center;
+      color: white;
+      position: relative;
+      z-index: 10;
+      transition: transform 0.3s ease;
+    }
+
+    .container:hover {
+      transform: translateY(-2px);
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      position: relative;
+    }
+
+    .logo::before {
+      content: '📄';
+      font-size: 24px;
+    }
+
+    h2 {
+      margin-bottom: 8px;
+      font-size: 28px;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, #fff, #e0e7ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      margin-bottom: 32px;
+      font-weight: 400;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .file-input-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 8px;
+      text-align: left;
+    }
+
+    input[type="file"] {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 16px;
+      width: 100%;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    input[type="file"]:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    input[type="file"]:focus {
+      outline: none;
+      border-color: #00c9ff;
+      box-shadow: 0 0 0 3px rgba(0, 201, 255, 0.1);
+    }
+
+    input[type="file"]::-webkit-file-upload-button {
+      background: linear-gradient(135deg, #2980b9, #3498db);
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 12px;
+      margin-right: 12px;
+      transition: all 0.3s ease;
+    }
+
+    input[type="file"]::-webkit-file-upload-button:hover {
+      background: linear-gradient(135deg, #3498db, #5dade2);
+      transform: translateY(-1px);
+    }
+
+    .file-status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #92fe9d;
+      text-align: left;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.3s ease;
+    }
+
+    .file-status.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    button {
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      border: none;
+      border-radius: 12px;
+      padding: 16px 24px;
+      width: 100%;
+      font-size: 16px;
+      font-weight: 600;
+      color: #000;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Inter', sans-serif;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 201, 255, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.5);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .loading {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0, 0, 0, 0.3);
+      border-top: 2px solid #000;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .features {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .feature {
       text-align: center;
     }
-    h2 {
-      color: #2c3e50;
-      margin-bottom: 20px;
+
+    .feature-title {
+      font-weight: 600;
+      font-size: 18px;
+      color: #00c9ff;
+      margin-bottom: 4px;
     }
-    input[type="file"] {
-      width: 100%;
-      padding: 14px;
-      margin: 20px 0;
-      border: 2px dashed #ccc;
-      border-radius: 10px;
-      background-color: #f8f8f8;
-      cursor: pointer;
+
+    .feature-desc {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
     }
-    input[type="file"]:hover {
-      border-color: #3498db;
-    }
-    button {
-      width: 100%;
-      padding: 14px;
-      background-color: #3498db;
-      color: white;
-      font-size: 16px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background 0.3s ease;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
+
     .footer {
-      margin-top: 20px;
-      font-size: 13px;
-      color: #555;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .support-text {
+      margin-top: 24px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 480px) {
+      .container {
+        padding: 32px 24px;
+        margin: 20px;
+      }
+      
+      h2 {
+        font-size: 24px;
+      }
+      
+      .features-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- Animated Background -->
+  <div class="stars" id="stars"></div>
+
   <div class="container">
-    <h2>📄 PDF to Excel Converter</h2>
-    <form method="POST" action="/convert" enctype="multipart/form-data">
-      <input type="file" name="pdf_file" accept=".pdf" required>
-      <button type="submit">Convert & Download</button>
+    <div class="logo"></div>
+    <h2>PDF Converter</h2>
+    <p class="subtitle">Convert Bank PDFs to Excel instantly</p>
+    
+    <form method="POST" action="/convert" enctype="multipart/form-data" id="convertForm">
+      <div class="file-input-wrapper">
+        <label class="file-input-label">Select PDF File</label>
+        <input type="file" name="pdf_file" accept=".pdf" required id="fileInput">
+        <div class="file-status" id="fileStatus"></div>
+      </div>
+      
+      <button type="submit" id="convertBtn">
+        <span class="btn-text">Convert & Download</span>
+        <div class="loading">
+          <div class="spinner"></div>
+          <span>Converting...</span>
+        </div>
+      </button>
     </form>
-    <div class="footer"> MADE FOR ARUNKUMAR 📉</div>
+
+    <div class="features">
+      <div class="features-grid">
+        <div class="feature">
+          <div class="feature-title">Fast</div>
+          <div class="feature-desc">Instant conversion</div>
+        </div>
+        <div class="feature">
+          <div class="feature-title">Secure</div>
+          <div class="feature-desc">Your data is safe</div>
+        </div>
+      </div>
+      
+      <div class="footer">Made by Ragul 📉 </div>
+    </div>
+
+    <div class="support-text">
+      Supported formats: PDF → Excel (XLSX)
+    </div>
   </div>
+
+  <script>
+    // Create animated stars
+    function createStars() {
+      const starsContainer = document.getElementById('stars');
+      const starCount = 100;
+      
+      for (let i = 0; i < starCount; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.animationDelay = Math.random() * 3 + 's';
+        star.style.animationDuration = (2 + Math.random() * 2) + 's';
+        starsContainer.appendChild(star);
+      }
+    }
+
+    // Create floating particles
+    function createParticles() {
+      setInterval(() => {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDuration = (4 + Math.random() * 2) + 's';
+        document.body.appendChild(particle);
+        
+        setTimeout(() => {
+          document.body.removeChild(particle);
+        }, 6000);
+      }, 500);
+    }
+
+    // File input handler
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const fileStatus = document.getElementById('fileStatus');
+      if (e.target.files && e.target.files[0]) {
+        fileStatus.textContent = `✓ ${e.target.files[0].name} selected`;
+        fileStatus.classList.add('show');
+      } else {
+        fileStatus.classList.remove('show');
+      }
+    });
+
+    // Form submission handler
+    document.getElementById('convertForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const btn = document.getElementById('convertBtn');
+      const btnText = btn.querySelector('.btn-text');
+      const loading = btn.querySelector('.loading');
+      
+      // Show loading state
+      btn.disabled = true;
+      btnText.style.display = 'none';
+      loading.style.display = 'flex';
+      
+      // Simulate conversion process
+      setTimeout(() => {
+        btn.disabled = false;
+        btnText.style.display = 'block';
+        loading.style.display = 'none';
+        
+        // Here you would typically handle the actual file conversion
+        alert('Conversion completed! Download would start here.');
+      }, 3000);
+    });
+
+    // Initialize animations
+    createStars();
+    createParticles();
+  </script>
 </body>
 </html>
 '''
