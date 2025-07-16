@@ -474,6 +474,7 @@ def detect_bank_type(lines):
     else:
         return "CANARA"
 
+
 def parse_table_based_with_pdfplumber(pdf_bytes, expected_columns):
     import io
     transactions = []
@@ -507,8 +508,8 @@ def convert_pdf_to_excel():
     for page in doc:
         lines.extend(page.get_text().split("\n"))
 
-    # 🔧 FIX: pass lines properly here
-    bank_type = detect_bank_type(lines)
+    bank_type = detect_bank_type(lines)  # ✅ correct usage
+
     transactions = []
     amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
     opening_balance = None
