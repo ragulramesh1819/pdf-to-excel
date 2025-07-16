@@ -1,12 +1,19 @@
+# Requirements:
+# Flask
+# PyMuPDF (install via: pip install PyMuPDF)
+# openpyxl
+# pdfplumber
+
 from flask import Flask, request, send_file, render_template_string
-import pdfplumber  # use this instead of fitz for table extraction
-import fitz  # still used for Canara line-by-line parsing
+import pdfplumber
+import fitz
 import json
 import re
 import openpyxl
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 from io import BytesIO
+
 
 app = Flask(__name__)
 HTML_FORM = '''
@@ -470,7 +477,7 @@ def detect_bank_type(lines):
 # === CANARA PARSER ===
 def parse_canara(lines, opening_balance):
     transactions = []
-    date_pattern = re.compile(r"\d{2}-\d{2}-\d{4}")
+    date_pattern = re.compile(r"\d{1,2}[-/]\d{1,2}[-/]\d{4}")  # Accepts dd-mm-yyyy or dd/mm/yyyy
     amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
     i = 0
     previous_balance = opening_balance
