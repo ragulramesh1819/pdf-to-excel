@@ -465,6 +465,36 @@ def index():
     return render_template_string(HTML_FORM)
 
 @app.route("/convert", methods=["POST"])
+def detect_bank_type(lines):
+    joined = " ".join(lines).lower()
+    if "hdfc bank" in joined:
+        return "HDFC"
+    elif "federal bank" in joined or "fdrlinbbbid" in joined:
+        return "FEDERAL"
+    else:
+        return "CANARA"
+
+def parse_table_based_with_pdfplumber(pdf_bytes, expected_columns):
+    import io
+    transactions = []
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for page in pdf.pages:
+            table = page.extract_table()
+            if not table:
+                continue
+            for row in table:
+                if row == expected_columns or len(row) < len(expected_columns):
+                    continue
+                transactions.append({
+                    "date": row[0],
+                    "particulars": row[2],
+                    "deposit": row[5 if len(expected_columns) == 7 else 7],
+                    "withdrawal": row[4 if len(expected_columns) == 7 else 6],
+                    "balance": row[6 if len(expected_columns) == 7 else 8]
+                })
+    return transactions
+
+@app.route("/convert", methods=["POST"])
 def convert_pdf_to_excel():
     uploaded_file = request.files["pdf_file"]
     if not uploaded_file:
@@ -477,73 +507,87 @@ def convert_pdf_to_excel():
     for page in doc:
         lines.extend(page.get_text().split("\n"))
 
-    # Detect opening balance
-    opening_balance = None
-    amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
-    for i in range(len(lines)):
-        if "Opening Balance" in lines[i]:
-            for j in range(i+1, i+4):
-                if amount_pattern.match(lines[j].strip()):
-                    opening_balance = float(lines[j].replace(",", ""))
-                    break
-            break
-
-    if opening_balance is None:
-        return "Opening Balance not found."
+    bank_type = detect_bank_type(lines)
 
     transactions = []
-    i = 0
-    date_pattern = re.compile(r"\d{2}-\d{2}-\d{4}")
-    previous_balance = opening_balance
+    amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
+    opening_balance = None
 
-    while i < len(lines):
-        line = lines[i].strip()
-        if date_pattern.match(line):
-            date = line
-            i += 1
-            particulars = []
+    if bank_type == "CANARA":
+        for i in range(len(lines)):
+            if "Opening Balance" in lines[i]:
+                for j in range(i + 1, i + 4):
+                    if j < len(lines) and amount_pattern.match(lines[j].strip()):
+                        opening_balance = float(lines[j].replace(",", ""))
+                        break
+                break
 
-            while i < len(lines) and not lines[i].startswith("Chq:") and not amount_pattern.match(lines[i].strip()):
-                particulars.append(lines[i].strip())
+        if opening_balance is None:
+            return "Opening Balance not found."
+
+        i = 0
+        date_pattern = re.compile(r"\d{1,2}[-/]\d{1,2}[-/]\d{4}")
+        previous_balance = opening_balance
+
+        while i < len(lines):
+            line = lines[i].strip()
+            if date_pattern.match(line):
+                date = line
+                i += 1
+                particulars = []
+
+                while i < len(lines) and not lines[i].startswith("Chq:") and not amount_pattern.match(lines[i].strip()):
+                    particulars.append(lines[i].strip())
+                    i += 1
+
+                if i < len(lines) and lines[i].startswith("Chq:"):
+                    particulars.append(lines[i].strip())
+                    i += 1
+
+                amounts = []
+                while i < len(lines) and len(amounts) < 2:
+                    amt_line = lines[i].strip()
+                    if amount_pattern.match(amt_line):
+                        amounts.append(amt_line)
+                    i += 1
+
+                deposit, withdrawal, balance = "", "", ""
+                if len(amounts) == 2:
+                    amount_val = float(amounts[0].replace(",", ""))
+                    balance_val = float(amounts[1].replace(",", ""))
+                    balance = amounts[1]
+
+                    if balance_val > previous_balance:
+                        deposit = amounts[0]
+                    elif balance_val < previous_balance:
+                        withdrawal = amounts[0]
+
+                    previous_balance = balance_val
+
+                elif len(amounts) == 1:
+                    balance = amounts[0]
+                    previous_balance = float(balance.replace(",", ""))
+
+                transactions.append({
+                    "date": date,
+                    "particulars": " ".join(particulars),
+                    "deposit": deposit,
+                    "withdrawal": withdrawal,
+                    "balance": balance
+                })
+            else:
                 i += 1
 
-            if i < len(lines) and lines[i].startswith("Chq:"):
-                particulars.append(lines[i].strip())
-                i += 1
+    elif bank_type == "HDFC":
+        hdfc_columns = ["Date", "Narration", "Chq./Ref.No.", "Value Dt", "Withdrawal Amt.", "Deposit Amt.", "Closing Balance"]
+        transactions = parse_table_based_with_pdfplumber(pdf_bytes, hdfc_columns)
 
-            amounts = []
-            while i < len(lines) and len(amounts) < 2:
-                amt_line = lines[i].strip()
-                if amount_pattern.match(amt_line):
-                    amounts.append(amt_line)
-                i += 1
+    elif bank_type == "FEDERAL":
+        fed_columns = ["Date", "Value Date", "Particulars", "Tran Type", "Tran ID", "Cheque Details", "Withdrawals", "Deposits", "Balance"]
+        transactions = parse_table_based_with_pdfplumber(pdf_bytes, fed_columns)
 
-            deposit, withdrawal, balance = "", "", ""
-            if len(amounts) == 2:
-                amount_val = float(amounts[0].replace(",", ""))
-                balance_val = float(amounts[1].replace(",", ""))
-                balance = amounts[1]
-
-                if balance_val > previous_balance:
-                    deposit = amounts[0]
-                elif balance_val < previous_balance:
-                    withdrawal = amounts[0]
-
-                previous_balance = balance_val
-
-            elif len(amounts) == 1:
-                balance = amounts[0]
-                previous_balance = float(balance.replace(",", ""))
-
-            transactions.append({
-                "date": date,
-                "particulars": " ".join(particulars),
-                "deposit": deposit,
-                "withdrawal": withdrawal,
-                "balance": balance
-            })
-        else:
-            i += 1
+    else:
+        return "Unsupported or unknown bank format."
 
     # Create Excel
     output = BytesIO()
@@ -558,10 +602,7 @@ def convert_pdf_to_excel():
         ws.append([tx["date"], tx["particulars"], tx["deposit"], tx["withdrawal"], tx["balance"]])
 
     for col_idx, col_cells in enumerate(ws.columns, start=1):
-        max_length = 0
-        for cell in col_cells:
-            if cell.value:
-                max_length = max(max_length, len(str(cell.value)))
+        max_length = max((len(str(cell.value)) if cell.value else 0) for cell in col_cells)
         ws.column_dimensions[get_column_letter(col_idx)].width = max_length + 4
 
     for row in ws.iter_rows():
@@ -577,6 +618,7 @@ def convert_pdf_to_excel():
         download_name="converted_statement.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=10000)
