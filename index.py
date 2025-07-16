@@ -464,27 +464,40 @@ HTML_FORM = '''
 def index():
     return render_template_string(HTML_FORM)
 
-# === DETECT BANK TYPE ===
-def detect_bank_type(lines):
-    joined = " ".join(lines).lower()
-    if "hdfc bank" in joined:
-        return "HDFC"
-    elif "federal bank" in joined or "fdrlinbbbid" in joined:
-        return "FEDERAL"
-    else:
-        return "CANARA"
+@app.route("/convert", methods=["POST"])
+def convert_pdf_to_excel():
+    uploaded_file = request.files["pdf_file"]
+    if not uploaded_file:
+        return "No file uploaded"
 
-# === CANARA PARSER ===
-def parse_canara(lines, opening_balance):
-    transactions = []
-    date_pattern = re.compile(r"\d{1,2}[-/]\d{1,2}[-/]\d{4}")  # Accepts dd-mm-yyyy or dd/mm/yyyy
+    pdf_bytes = uploaded_file.read()
+    doc = fitz.open("pdf", pdf_bytes)
+
+    lines = []
+    for page in doc:
+        lines.extend(page.get_text().split("\n"))
+
+    # Detect opening balance
+    opening_balance = None
     amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
+    for i in range(len(lines)):
+        if "Opening Balance" in lines[i]:
+            for j in range(i+1, i+4):
+                if amount_pattern.match(lines[j].strip()):
+                    opening_balance = float(lines[j].replace(",", ""))
+                    break
+            break
+
+    if opening_balance is None:
+        return "Opening Balance not found."
+
+    transactions = []
     i = 0
+    date_pattern = re.compile(r"\d{2}-\d{2}-\d{4}")
     previous_balance = opening_balance
 
     while i < len(lines):
         line = lines[i].strip()
-
         if date_pattern.match(line):
             date = line
             i += 1
@@ -531,68 +544,6 @@ def parse_canara(lines, opening_balance):
             })
         else:
             i += 1
-    return transactions
-
-# === HDFC & FEDERAL with pdfplumber ===
-def parse_table_based_with_pdfplumber(pdf_bytes, expected_columns):
-    import io
-    transactions = []
-    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-        for page in pdf.pages:
-            table = page.extract_table()
-            if not table:
-                continue
-            for row in table:
-                if row == expected_columns or len(row) < len(expected_columns):
-                    continue
-                transactions.append({
-                    "date": row[0],
-                    "particulars": row[2],
-                    "deposit": row[5 if len(expected_columns) == 7 else 7],
-                    "withdrawal": row[4 if len(expected_columns) == 7 else 6],
-                    "balance": row[6 if len(expected_columns) == 7 else 8]
-                })
-    return transactions
-
-@app.route("/convert", methods=["POST"])
-def convert_pdf_to_excel():
-    uploaded_file = request.files["pdf_file"]
-    if not uploaded_file:
-        return "No file uploaded"
-
-    pdf_bytes = uploaded_file.read()
-    doc = fitz.open("pdf", pdf_bytes)
-
-    lines = []
-    for page in doc:
-        lines.extend(page.get_text().split("\n"))
-
-    bank_type = detect_bank_type(lines)
-
-    # Detect opening balance for Canara
-    opening_balance = None
-    amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
-    for i in range(len(lines)):
-        if "Opening Balance" in lines[i]:
-            for j in range(i+1, i+4):
-                if j < len(lines) and amount_pattern.match(lines[j].strip()):
-                    opening_balance = float(lines[j].replace(",", ""))
-                    break
-            break
-
-    if bank_type == "CANARA" and opening_balance is None:
-        return "Opening Balance not found."
-
-    if bank_type == "CANARA":
-        transactions = parse_canara(lines, opening_balance)
-    elif bank_type == "HDFC":
-        hdfc_columns = ["Date", "Narration", "Chq./Ref.No.", "Value Dt", "Withdrawal Amt.", "Deposit Amt.", "Closing Balance"]
-        transactions = parse_table_based_with_pdfplumber(pdf_bytes, hdfc_columns)
-    elif bank_type == "FEDERAL":
-        fed_columns = ["Date", "Value Date", "Particulars", "Tran Type", "Tran ID", "Cheque Details", "Withdrawals", "Deposits", "Balance"]
-        transactions = parse_table_based_with_pdfplumber(pdf_bytes, fed_columns)
-    else:
-        return "Unknown bank format."
 
     # Create Excel
     output = BytesIO()
