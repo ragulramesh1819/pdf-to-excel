@@ -507,8 +507,8 @@ def convert_pdf_to_excel():
     for page in doc:
         lines.extend(page.get_text().split("\n"))
 
+    # 🔧 FIX: pass lines properly here
     bank_type = detect_bank_type(lines)
-
     transactions = []
     amount_pattern = re.compile(r"^\d{1,3}(?:,\d{3})*(?:\.\d{2})$")
     opening_balance = None
