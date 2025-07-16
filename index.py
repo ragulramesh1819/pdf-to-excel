@@ -1,5 +1,6 @@
 from flask import Flask, request, send_file, render_template_string
-import fitz  # PyMuPDF
+import pdfplumber  # use this instead of fitz for table extraction
+import fitz  # still used for Canara line-by-line parsing
 import json
 import re
 import openpyxl
@@ -455,7 +456,6 @@ HTML_FORM = '''
 @app.route("/")
 def index():
     return render_template_string(HTML_FORM)
-pp = Flask(__name__)
 
 # === DETECT BANK TYPE ===
 def detect_bank_type(lines):
@@ -526,17 +526,18 @@ def parse_canara(lines, opening_balance):
             i += 1
     return transactions
 
-# === HDFC & FEDERAL (table-based) ===
-def parse_table_based(doc, expected_columns):
+# === HDFC & FEDERAL with pdfplumber ===
+def parse_table_based_with_pdfplumber(pdf_bytes, expected_columns):
+    import io
     transactions = []
-    for page in doc:
-        table = page.extract_table()
-        if not table:
-            continue
-        for row in table:
-            if row == expected_columns:
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for page in pdf.pages:
+            table = page.extract_table()
+            if not table:
                 continue
-            if row and all(cell is not None for cell in row[:len(expected_columns)]):
+            for row in table:
+                if row == expected_columns or len(row) < len(expected_columns):
+                    continue
                 transactions.append({
                     "date": row[0],
                     "particulars": row[2],
@@ -579,10 +580,10 @@ def convert_pdf_to_excel():
         transactions = parse_canara(lines, opening_balance)
     elif bank_type == "HDFC":
         hdfc_columns = ["Date", "Narration", "Chq./Ref.No.", "Value Dt", "Withdrawal Amt.", "Deposit Amt.", "Closing Balance"]
-        transactions = parse_table_based(doc, hdfc_columns)
+        transactions = parse_table_based_with_pdfplumber(pdf_bytes, hdfc_columns)
     elif bank_type == "FEDERAL":
         fed_columns = ["Date", "Value Date", "Particulars", "Tran Type", "Tran ID", "Cheque Details", "Withdrawals", "Deposits", "Balance"]
-        transactions = parse_table_based(doc, fed_columns)
+        transactions = parse_table_based_with_pdfplumber(pdf_bytes, fed_columns)
     else:
         return "Unknown bank format."
 
